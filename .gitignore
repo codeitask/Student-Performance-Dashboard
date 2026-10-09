@@ -12,3 +12,7 @@ venv/
 test1_old.py
 debug_data.py
 check_kathy.py
+
+
+# Streamlit
+.streamlit/secrets.toml
