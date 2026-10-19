@@ -492,7 +492,7 @@ if show_login_page():
         """, unsafe_allow_html=True)
 
     # ---- Tab Structure ----
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Overall Analysis", "👨‍🎓 Student Analysis", "📋 Detailed Data", "🚪 Dropouts", "🎓 Tertiary Analysis"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Overall Analysis", "👨‍🎓 High School Student Analysis", "📋 Detailed Data", "🚪 Dropouts", "🎓 Tertiary Analysis", "🔍 Student Details"])
 
     # --- Tab 1 ---
     with tab1:
@@ -1391,3 +1391,123 @@ if show_login_page():
                 st.download_button(label="Download CSV", data=csv_tertiary, file_name=f"tertiary_data_filtered_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv", mime="text/csv")
         else:
             st.warning("⚠️ No Tertiary Data found. Please check your data source connection.")
+    # --- Tab 6 ---
+    with tab6:
+        # still need to check for different profile just checked on few of the profile.
+        st.markdown("### 🔍 Student Details Profile")
+
+        # 1. Load the Student Details CSV file
+        # Replace 'student_details.csv' with the actual path to your file, csv file should have all teh student data which is shares.
+        # Replace this with google drive functionlity to fetch the file from google drive if you want to use it from there.
+        import os
+        csv_file_path = 'student_details.csv' 
+
+        if os.path.exists(csv_file_path):
+            try:
+                # Read CSV and strip spaces from headers
+                student_info_df = pd.read_csv(csv_file_path)
+                student_info_df.columns = student_info_df.columns.str.strip()
+
+                # Basic Validation: Check if core columns exist
+                required_cols = ["Name", "Email", "School"]
+                missing_cols = [col for col in required_cols if col not in student_info_df.columns]
+
+                if missing_cols:
+                    st.error(f"⚠️ The CSV is missing required columns: {', '.join(missing_cols)}")
+                else:
+                    # Clean up rows with empty names
+                    student_info_df = student_info_df.dropna(subset=['Name'])
+                    student_info_df['Name'] = student_info_df['Name'].astype(str).str.strip()
+                    
+                    # 2. Display KPI Metric for Total Records Available
+                    total_students = len(student_info_df)
+                    
+                    col_metric, _ = st.columns([1, 2])
+                    with col_metric:
+                        st.metric("Total Student Profiles Available", total_students)
+                    
+                    st.markdown("---")
+
+                    # 3. Dropdown Selection for Student
+                    student_list = sorted(student_info_df['Name'].unique().tolist())
+                    selected_student_name = st.selectbox(
+                        "👤 Select a Student to View Profile", 
+                        options=student_list, 
+                        index=0 if student_list else None
+                    )
+
+                    if selected_student_name:
+                        # Extract the selected student's data row
+                        student_data = student_info_df[student_info_df['Name'] == selected_student_name].iloc[0]
+
+                        # Helper function to get value safely if column exists
+                        def get_val(col_name, default="Not Provided"):
+                            if col_name in student_data.index and pd.notna(student_data[col_name]):
+                                return str(student_data[col_name]).strip()
+                            return default
+
+                        # 4. Display the Student Profile Card Layout
+                        st.markdown(f"## Profile: {selected_student_name}")
+                        
+                        prof_col1, prof_col2 = st.columns(2)
+                        
+                        with prof_col1:
+                            st.markdown(f"**🏫 School:** {get_val('School')}")
+                            st.markdown(f"**📚 Course:** {get_val('Course (e.g. Diploma in Clinical Medicine')}")
+                            st.markdown(f"**🎓 Expected Graduation:** {get_val('Expected Graduation (e.g. December/July)')}")
+                        
+                        with prof_col2:
+                            st.markdown(f"**📧 Email:** {get_val('Email')}")
+                            st.markdown(f"**📞 Phone Number:** {get_val('Phone number')}")
+                            st.markdown(f"**⏱️ Data Logged At:** {get_val('Timestamp')}")
+
+                        st.markdown("#### 🔗 Quick Links & Documents")
+
+                        # Helper function to fix missing https:// protocols, some users may enter links without the protocol, so we ensure they are clickable.
+                        def format_url(url_string):
+                            if url_string == '#':
+                                return '#'
+                            url_clean = url_string.strip()
+                            if not (url_clean.startswith("http://") or url_clean.startswith("https://")):
+                                return f"https://{url_clean}"
+                            return url_clean
+                        
+                        # Generate interactive layout for clickable links
+                        link_col1, link_col2, link_col3 = st.columns(3)
+
+                        with link_col1:
+                            linkedin_url = format_url(get_val('LinkedIn Profile', '#'))
+                            if linkedin_url != '#':
+                                st.link_button("🌐 View LinkedIn Profile", linkedin_url, use_container_width=True)
+                            else:
+                                st.button("🌐 LinkedIn: Not Provided", disabled=True, use_container_width=True)
+
+                        with link_col2:
+                            planner_url = format_url(get_val('Updated Academic Planner Link', '#'))
+                            if planner_url != '#':
+                                st.link_button("📅 Academic Planner", planner_url, use_container_width=True)
+                            else:
+                                st.button("📅 Planner: Not Provided", disabled=True, use_container_width=True)
+
+                        with link_col3:
+                            portfolio_url = format_url(get_val('E-portfolio Link', '#'))
+                            if portfolio_url != '#':
+                                st.link_button("📂 View E-Portfolio", portfolio_url, use_container_width=True)
+                            else:
+                                st.button("📂 E-Portfolio: Not Provided", disabled=True, use_container_width=True)
+
+                        # CV Link Button Action (Google Drive)
+                        # some are opening some are not as some are public and some are private, we can check where this profiles will be available and if required will used above google creds to check on profile.
+                        st.markdown("---")
+                        cv_url = format_url(get_val('CV Link On Google Drive', '#'))
+                        if cv_url != '#':
+                            st.info("📄 A copy of this student's Curriculum Vitae (CV) is available on Google Drive.")
+                            st.link_button("📥 Open & Download CV from Google Drive", cv_url, type="primary")
+                        else:
+                            st.warning("⚠️ No CV Link has been submitted for this student.")
+
+            except Exception as e:
+                st.error(f"❌ Error loading student details file: {e}")
+        else:
+            st.warning(f"📂 Please create or place the **'{csv_file_path}'** file in your root folder to load student profiles.")
+

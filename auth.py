@@ -28,7 +28,7 @@ def show_login_page():
         st.session_state.logged_in = False
 
     if not st.session_state.logged_in:
-        st.title("🔒 Corporate Dashboard Login")
+        st.title("🔒 Dashboard Login")
         st.text_input("Username", key="username")
         st.text_input("Password", type="password", key="password")
         st.button("Log In", on_click=check_login, type="primary")
